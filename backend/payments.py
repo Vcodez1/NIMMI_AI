@@ -27,28 +27,55 @@ async def create_checkout_session(bot_id: str, db: AsyncSession = Depends(get_db
         if not bot:
             raise HTTPException(status_code=404, detail="Bot not found")
 
-        # Create Stripe checkout session
-        checkout_session = stripe.checkout.Session.create(
-            automatic_payment_methods={"enabled": True},
-            line_items=[
-                {
-                    'price_data': {
-                        'currency': 'inr',
-                        'product_data': {
-                            'name': f'Unlock Export for {bot.bot_name}',
+        # Create Stripe checkout session with fallback for older API versions
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                automatic_payment_methods={"enabled": True},
+                line_items=[
+                    {
+                        'price_data': {
+                            'currency': 'inr',
+                            'product_data': {
+                                'name': f'Unlock Export for {bot.bot_name}',
+                            },
+                            'unit_amount': 5000, # 50 INR (Minimum for account conversion)
                         },
-                        'unit_amount': 5000, # 50 INR (Minimum for account conversion)
+                        'quantity': 1,
                     },
-                    'quantity': 1,
-                },
-            ],
-            mode='payment',
-            success_url=f"{BACKEND_URL}/api/payments/success?session_id={{CHECKOUT_SESSION_ID}}&bot_id={bot_id}",
-            cancel_url=f"{DASHBOARD_URL}/dashboard/builder/{bot_id}?payment=cancelled",
-            metadata={
-                "bot_id": bot_id
-            }
-        )
+                ],
+                mode='payment',
+                success_url=f"{BACKEND_URL}/api/payments/success?session_id={{CHECKOUT_SESSION_ID}}&bot_id={bot_id}",
+                cancel_url=f"{DASHBOARD_URL}/dashboard/builder/{bot_id}?payment=cancelled",
+                metadata={
+                    "bot_id": bot_id
+                }
+            )
+        except stripe.error.InvalidRequestError as e:
+            if "unknown parameter: automatic_payment_methods" in str(e).lower():
+                logger.warning("Stripe account has old API version. Falling back to card payments.")
+                checkout_session = stripe.checkout.Session.create(
+                    payment_method_types=['card'],
+                    line_items=[
+                        {
+                            'price_data': {
+                                'currency': 'inr',
+                                'product_data': {
+                                    'name': f'Unlock Export for {bot.bot_name}',
+                                },
+                                'unit_amount': 5000,
+                            },
+                            'quantity': 1,
+                        },
+                    ],
+                    mode='payment',
+                    success_url=f"{BACKEND_URL}/api/payments/success?session_id={{CHECKOUT_SESSION_ID}}&bot_id={bot_id}",
+                    cancel_url=f"{DASHBOARD_URL}/dashboard/builder/{bot_id}?payment=cancelled",
+                    metadata={
+                        "bot_id": bot_id
+                    }
+                )
+            else:
+                raise e
         return {"url": checkout_session.url}
     except Exception as e:
         logger.error(f"Payment error: {str(e)}")
