@@ -8,5 +8,5 @@ google-generativeai
 PyPDF2
 python-multipart
 pydantic
-stripe
+stripe>=10.0.0
 bcrypt

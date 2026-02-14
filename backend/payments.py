@@ -29,7 +29,7 @@ async def create_checkout_session(bot_id: str, db: AsyncSession = Depends(get_db
 
         # Create Stripe checkout session
         checkout_session = stripe.checkout.Session.create(
-            automatic_payment_methods={"enabled": True},
+            payment_method_types=['card'],
             line_items=[
                 {
                     'price_data': {
