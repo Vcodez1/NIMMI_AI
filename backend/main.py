@@ -49,9 +49,9 @@ async def on_startup():
     from database import init_db
     try:
         await init_db()
-        print("Database initialized successfully")
+        logger.info("Database initialized successfully")
     except Exception as e:
-        print(f"Warning: Database initialization failed: {e}")
+        logger.error(f"Warning: Database initialization failed: {e}")
         # The app will still run, allowing the frontend to connect and see errors
 
 # Models
