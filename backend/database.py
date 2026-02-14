@@ -7,13 +7,17 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@localhost/nimmi")
 
+from sqlalchemy.pool import NullPool
+
 # Create async engine
 engine = create_async_engine(
     DATABASE_URL,
     echo=True,
+    poolclass=NullPool,
     connect_args={
         "prepared_statement_cache_size": 0,
-        "statement_cache_size": 0
+        "statement_cache_size": 0,
+        "command_timeout": 60
     }
 )
 

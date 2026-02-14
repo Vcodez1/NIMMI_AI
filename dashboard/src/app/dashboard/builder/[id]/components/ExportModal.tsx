@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { X, Copy, Check, Code, Terminal, Layers } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Copy, Check, Code, Terminal, Layers, Lock, ShieldCheck, Zap } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ExportModalProps {
     botId: string;
@@ -11,12 +12,52 @@ interface ExportModalProps {
 export default function ExportModal({ botId, onClose }: ExportModalProps) {
     const [copied, setCopied] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<"html" | "react" | "nextjs">("html");
+    const [isUnlocked, setIsUnlocked] = useState(false);
+    const [checkingStatus, setCheckingStatus] = useState(true);
+    const [paying, setPaying] = useState(false);
 
     const baseUrl = typeof window !== "undefined" && !window.location.hostname.includes("localhost")
         ? window.location.origin
-        : "http://192.168.1.46:3000";
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://192.168.1.46:8000";
+        : "http://localhost:3000";
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
     const scriptUrl = `${baseUrl}/widget.js`;
+
+    useEffect(() => {
+        const checkStatus = async () => {
+            try {
+                const res = await fetch(`${apiBase}/api/bots/${botId}/config`);
+                const data = await res.json();
+                if (res.ok) {
+                    setIsUnlocked(data.export_unlocked);
+                }
+            } catch (err) {
+                console.error("Failed to check unlock status:", err);
+            } finally {
+                setCheckingStatus(false);
+            }
+        };
+        checkStatus();
+    }, [botId, apiBase]);
+
+    const handlePay = async () => {
+        setPaying(true);
+        try {
+            const res = await fetch(`${apiBase}/api/payments/create-checkout-session?bot_id=${botId}`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            if (res.ok && data.url) {
+                window.location.href = data.url;
+            } else {
+                alert("Failed to initiate payment: " + (data.detail || "Unknown error"));
+            }
+        } catch (err) {
+            console.error("Payment error:", err);
+            alert("Payment failed to start.");
+        } finally {
+            setPaying(false);
+        }
+    };
 
     const snippets = {
         html: `<!-- Nimmi AI Chatbot -->
@@ -137,11 +178,84 @@ export default function NimmiChatbot() {
                                     )}
                                 </button>
                             </div>
-                            <div className="bg-black/40 border border-white/5 rounded-2xl p-6 font-mono text-sm group relative overflow-hidden">
-                                <pre className="text-blue-400 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-                                    {snippets[activeTab]}
-                                </pre>
-                                <div className="absolute top-0 right-0 w-1/4 h-full bg-gradient-to-l from-zinc-900/0 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="bg-black/40 border border-white/5 rounded-2xl p-8 font-mono text-sm group relative overflow-hidden min-h-[300px] flex flex-col justify-center">
+                                {isUnlocked ? (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                    >
+                                        <pre className="text-blue-400 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                                            {snippets[activeTab]}
+                                        </pre>
+                                        <div className="absolute top-0 right-0 w-1/4 h-full bg-gradient-to-l from-zinc-900/0 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </motion.div>
+                                ) : (
+                                    <AnimatePresence mode="wait">
+                                        {!paying ? (
+                                            <motion.div
+                                                key="locked"
+                                                initial={{ opacity: 0, scale: 0.95 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 1.05 }}
+                                                className="flex flex-col items-center justify-center space-y-6 text-center"
+                                            >
+                                                <div className="relative">
+                                                    <div className="p-5 bg-blue-600/10 rounded-full border border-blue-600/20 relative z-10">
+                                                        <Lock size={32} className="text-blue-400" />
+                                                    </div>
+                                                    <motion.div
+                                                        animate={{ scale: [1, 1.2, 1] }}
+                                                        transition={{ duration: 2, repeat: Infinity }}
+                                                        className="absolute inset-0 bg-blue-600/20 rounded-full blur-xl -z-0"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <h4 className="text-xl font-bold text-white tracking-tight">Deployment Access Required</h4>
+                                                    <p className="text-xs text-white/40 max-w-[280px] leading-relaxed mx-auto">
+                                                        To export this chatbot to your website, a one-time activation fee is required.
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex items-center gap-6 py-2">
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <ShieldCheck size={16} className="text-blue-500/50" />
+                                                        <span className="text-[10px] text-white/20 uppercase font-bold tracking-widest">Secure</span>
+                                                    </div>
+                                                    <div className="h-8 w-px bg-white/5" />
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <Zap size={16} className="text-blue-500/50" />
+                                                        <span className="text-[10px] text-white/20 uppercase font-bold tracking-widest">Instant</span>
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={handlePay}
+                                                    className="group relative px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold transition-all shadow-xl shadow-blue-600/20 active:scale-95 overflow-hidden"
+                                                >
+                                                    <div className="relative z-10 flex items-center gap-2">
+                                                        Pay ₹50 to Unlock License
+                                                    </div>
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                                </button>
+                                            </motion.div>
+                                        ) : (
+                                            <motion.div
+                                                key="paying"
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0 }}
+                                                className="flex flex-col items-center justify-center space-y-6 text-center"
+                                            >
+                                                <div className="w-16 h-16 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
+                                                <div className="space-y-2">
+                                                    <h4 className="text-lg font-bold text-white">Secure Checkout</h4>
+                                                    <p className="text-xs text-white/40">Redirecting to payment gateway...</p>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                )}
                             </div>
                         </div>
 

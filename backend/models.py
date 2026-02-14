@@ -24,6 +24,7 @@ class Bot(Base):
     flow_data = Column(JSON, default={"nodes": [], "edges": []})
     knowledge_base = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+    export_unlocked = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Conversation(Base):

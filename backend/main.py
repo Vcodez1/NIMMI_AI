@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Nimmi AI Backend")
 
+from payments import router as payments_router
+app.include_router(payments_router)
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     origin = request.headers.get("origin")
@@ -210,10 +213,13 @@ async def get_bot_config(bot_id: str, db: AsyncSession = Depends(get_db)):
     return {
         "bot_id": str(bot.bot_id),
         "bot_name": bot.bot_name,
-        "visual_config": bot.visual_config,
         "system_prompt": bot.system_prompt,
+        "visual_config": bot.visual_config,
+        "flow_data": bot.flow_data,
         "knowledge_base": bot.knowledge_base,
-        "flow_data": bot.flow_data
+        "is_active": bot.is_active,
+        "export_unlocked": bot.export_unlocked,
+        "created_at": bot.created_at
     }
 
 @app.patch("/api/bots/{bot_id}")
@@ -312,6 +318,7 @@ async def chat_message(chat: ChatMessage, db: AsyncSession = Depends(get_db)):
 
 @app.post("/api/chat/variables")
 async def capture_variables(data: VariableCapture, db: AsyncSession = Depends(get_db)):
+    logger.info(f"Capturing variable: {data.variable_name} = {data.variable_value} for bot: {data.bot_id} | Session: {data.visitor_session_id}")
     # Find or create conversation
     result = await db.execute(
         select(Conversation).where(
@@ -342,24 +349,32 @@ async def capture_variables(data: VariableCapture, db: AsyncSession = Depends(ge
 
 @app.get("/api/bots/{bot_id}/leads")
 async def get_bot_leads(bot_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Conversation).where(
-            Conversation.bot_id == uuid.UUID(bot_id),
-            Conversation.captured_data != {}
-        ).order_by(Conversation.created_at.desc())
-    )
-    leads = result.scalars().all()
-    
-    # Return formatted leads
-    return [
-        {
-            "id": str(lead.conversation_id),
-            "session_id": lead.visitor_session_id,
-            "data": lead.captured_data,
-            "created_at": lead.created_at
-        }
-        for lead in leads
-    ]
+    logger.info(f"Fetching leads for bot: {bot_id}")
+    try:
+        bot_uuid = uuid.UUID(bot_id)
+        result = await db.execute(
+            select(Conversation).where(
+                Conversation.bot_id == bot_uuid
+            ).order_by(Conversation.created_at.desc())
+        )
+        conversations = result.scalars().all()
+        
+        # Filter conversations that have captured data manually to avoid DB comparison issues
+        leads = [
+            {
+                "id": str(conv.conversation_id),
+                "session_id": conv.visitor_session_id,
+                "data": conv.captured_data,
+                "created_at": conv.created_at
+            }
+            for conv in conversations if conv.captured_data and len(conv.captured_data) > 0
+        ]
+        
+        logger.info(f"Found {len(leads)} leads for bot {bot_id}")
+        return leads
+    except Exception as e:
+        logger.error(f"Error fetching leads: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

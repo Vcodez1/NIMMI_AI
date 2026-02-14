@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use, useEffect, useCallback, useRef } from "react";
+import { useState, use, useEffect, useCallback, useRef, Suspense } from "react";
 import {
     Bot, Palette, Database, Brain, GitBranch,
     ChevronLeft, Save, Upload, Plus, MessageSquare,
@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Node, Edge } from "reactflow";
 import dynamic from "next/dynamic";
 import ElementsSidebar from "./components/ElementsSidebar";
@@ -64,6 +64,37 @@ export default function Builder({ params }: { params: Promise<{ id: string }> })
     const lastSavedState = useRef<string>("");
     const [leads, setLeads] = useState<any[]>([]);
     const [leadsLoading, setLeadsLoading] = useState(false);
+
+    const fetchLeads = async () => {
+        setLeadsLoading(true);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bots/${id}/leads`);
+            const data = await res.json();
+            if (res.ok) {
+                setLeads(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch leads:", err);
+        } finally {
+            setLeadsLoading(false);
+        }
+    };
+
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        if (searchParams.get("payment") === "success") {
+            setShowExport(true);
+            // Optional: Remove query param from URL without refreshing
+            router.replace(`/dashboard/builder/${id}`);
+        }
+    }, [searchParams, id, router]);
+
+    useEffect(() => {
+        if (activeTab === "storage") {
+            fetchLeads();
+        }
+    }, [activeTab, id]);
 
     useEffect(() => {
         const fetchConfig = async () => {
