@@ -2,6 +2,7 @@ services:
   # Backend Service
   - type: web
     name: nimmi-backend
+    plan: free
     env: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
