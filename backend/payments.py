@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/payments", tags=["payments"])
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
-DASHBOARD_URL = "http://localhost:3000" # Assuming dashboard is on 3000
+DASHBOARD_URL = os.getenv("DASHBOARD_URL", "http://localhost:3000")
 
 @router.post("/create-checkout-session")
 async def create_checkout_session(bot_id: str, db: AsyncSession = Depends(get_db)):
