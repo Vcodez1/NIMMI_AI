@@ -29,7 +29,7 @@ async def create_checkout_session(bot_id: str, db: AsyncSession = Depends(get_db
 
         # Create Stripe checkout session
         checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
+            payment_method_types=['card', 'upi'],
             line_items=[
                 {
                     'price_data': {
