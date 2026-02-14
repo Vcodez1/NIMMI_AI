@@ -22,8 +22,6 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="Nimmi AI Backend")
 
 from payments import router as payments_router
-import stripe
-logger.info(f"Stripe Library Version: {stripe.__version__}")
 app.include_router(payments_router)
 
 @app.middleware("http")
