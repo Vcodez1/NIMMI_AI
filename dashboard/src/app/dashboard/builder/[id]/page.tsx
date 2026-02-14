@@ -21,7 +21,7 @@ const FlowBuilder = dynamic(() => import("./components/FlowBuilder"), { ssr: fal
 
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Outfit:wght@400;700&display=swap";
 
-export default function Builder({ params }: { params: Promise<{ id: string }> }) {
+function BuilderContent({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const [activeTab, setActiveTab] = useState("design");
     const [color, setColor] = useState("#3b82f6");
@@ -1013,5 +1013,13 @@ export default function Builder({ params }: { params: Promise<{ id: string }> })
                 )}
             </AnimatePresence>
         </div >
+    );
+}
+
+export default function Builder(props: any) {
+    return (
+        <Suspense fallback={<div className="h-screen bg-black flex items-center justify-center text-white">Loading...</div>}>
+            <BuilderContent {...props} />
+        </Suspense>
     );
 }
