@@ -20,6 +20,12 @@
     "reactflow": "^11.11.4",
     "tailwind-merge": "^3.4.0"
   },
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "^1.31.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
