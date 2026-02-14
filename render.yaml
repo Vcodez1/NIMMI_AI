@@ -26,7 +26,7 @@ services:
       - key: STRIPE_PUBLISHABLE_KEY
         sync: false
       - key: BACKEND_URL
-        fromContext: instanceUrl
+        sync: false
       - key: PORT
         value: 8000
 
@@ -39,7 +39,4 @@ services:
     startCommand: npm run start
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        fromContext: instanceUrl
-        fromService:
-          name: nimmi-backend
-          type: web
+        sync: false
